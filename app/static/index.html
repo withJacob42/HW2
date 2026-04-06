@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Food Classification & Calorie Estimation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f1f5f9;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 12px;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: var(--card-bg);
+            backdrop-filter: blur(var(--glass-blur));
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+            font-size: 1.1rem;
+        }
+
+        .upload-area {
+            border: 2px dashed #475569;
+            border-radius: 16px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            background: rgba(15, 23, 42, 0.4);
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: var(--accent-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .upload-area input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .upload-text {
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 250px;
+            border-radius: 12px;
+            display: none;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        button {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px var(--accent-color);
+        }
+
+        button:disabled {
+            background: #475569;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+            text-align: left;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--card-border);
+            animation: slideUp 0.5s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #94a3b8;
+            font-size: 0.95rem;
+        }
+
+        .result-value {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #f8fafc;
+            text-transform: capitalize;
+        }
+        
+        .result-value.highlight {
+            color: #c084fc;
+        }
+
+        .loader {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Food AI Engine</h1>
+        <p class="subtitle">Classify and estimate calories instantly</p>
+
+        <form id="uploadForm">
+            <div class="upload-area" id="dropZone">
+                <input type="file" id="fileInput" accept="image/*" required>
+                <span class="upload-icon">📸</span>
+                <div class="upload-text">Click or drag a food image here</div>
+            </div>
+            
+            <img id="imagePreview" src="#" alt="Image Preview">
+            
+            <button type="submit" id="submitBtn" disabled>
+                <span id="btnText">Analyze Food</span>
+                <div class="loader" id="loader"></div>
+            </button>
+        </form>
+
+        <div class="results" id="results">
+            <div class="result-item">
+                <span class="result-label">Identified Result:</span>
+                <span class="result-value highlight" id="resClass">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Confidence:</span>
+                <span class="result-value" id="resConf">-</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Estimated Calories:</span>
+                <span class="result-value" id="resCal">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        const imagePreview = document.getElementById('imagePreview');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const results = document.getElementById('results');
+        const btnText = document.getElementById('btnText');
+        const loader = document.getElementById('loader');
+
+        // Drag and drop styles
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            let dt = e.dataTransfer;
+            let files = dt.files;
+            fileInput.files = files;
+            handleFileSelect(files[0]);
+        });
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                handleFileSelect(this.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                dropZone.style.display = 'none';
+                submitBtn.disabled = false;
+                results.style.display = 'none';
+            }
+            reader.readAsDataURL(file);
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // UI Loading state
+            btnText.style.display = 'none';
+            loader.style.display = 'block';
+            submitBtn.disabled = true;
+            results.style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Analysis failed');
+                }
+
+                const data = await response.json();
+                
+                document.getElementById('resClass').innerText = data.prediction.replace(/_/g, ' ');
+                document.getElementById('resConf').innerText = (data.confidence * 100).toFixed(1) + '%';
+                document.getElementById('resCal').innerText = data.calories;
+                
+                results.style.display = 'block';
+            } catch (error) {
+                alert('An error occurred during analysis.');
+                console.error(error);
+            } finally {
+                // Restore UI state
+                btnText.style.display = 'block';
+                loader.style.display = 'none';
+                submitBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

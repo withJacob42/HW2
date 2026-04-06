@@ -53,9 +53,14 @@ class FoodClassifier:
         class_name = self.categories[top_catid[0].item()]
         confidence = top_prob[0].item()
 
+        # Deterministic dummy calorie estimation based on string characters
+        # (In a real MLOps pipeline, this would cross-reference a database)
+        estimated_calories = 50 + (sum(ord(c) for c in class_name) * 7) % 800
+
         return {
             "class": class_name,
-            "confidence": confidence
+            "confidence": confidence,
+            "calories": f"{estimated_calories} kcal"
         }
 
 # Instantiate once so it remains in memory across requests
