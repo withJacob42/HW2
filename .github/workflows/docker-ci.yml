@@ -30,3 +30,19 @@ jobs:
           tags: |
             redmin42/food-app:latest
             redmin42/food-app:${{ github.sha }}
+
+  deploy:
+    needs: build
+    runs-on: self-hosted
+
+    steps:
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Pull, Stop, Remove, and Run Docker Container
+        run: |
+          docker pull redmin42/food-app:latest
+          docker stop food-app || true
+          docker rm food-app || true
+          docker run -d --name food-app -p 8000:8000 --restart unless-stopped redmin42/food-app:latest
+
